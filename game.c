@@ -12,6 +12,9 @@
 #define INITIALISE_DECKS_SUCCESS 300
 #define INITILIASE_DECKS_FAIL 400
 #define DEAL_CARD_FAIL 500
+#define DECK_FINISHED 600
+#define PLAYER_WIN 700
+#define DEALER_WIN 800
 
 /* This is a function that allows us to easily create text based menus. */
 /* The minimum number of options supplied is 2, and the maximum is 3. */
@@ -57,12 +60,19 @@ int prompt_choice(char menu_name[], char msg[], char option1[], char option2[], 
 
 int initialise_decks(int* deck, int* shuffled_deck, int* player_hand, int* dealer_hand, int size)
 {
+	printf("=================INITIALISING==================\n");
 	for (int i = 0; i < DECK_SIZE; i++)
 	{
 		// initialise shuffled deck to be all 0s
+		/* deck[i] = 0; */
 		shuffled_deck[i] = 0;
 		player_hand[i] = 0;
 		dealer_hand[i] = 0;
+
+		/* if (deck[i] == 0) */
+		/* { */
+		/* 	printf("deck[%d] is zero\n", i); */
+		/* } */
 
 		if (i < 4)
 			deck[i] = 1;
@@ -92,6 +102,8 @@ int initialise_decks(int* deck, int* shuffled_deck, int* player_hand, int* deale
 			deck[i] = 13;
 		else
 			deck[i] = -1;
+
+		/* printf("deck[%d]: %d\n", i, deck[i]); */
 	}
 
 	return INITIALISE_DECKS_SUCCESS;
@@ -110,11 +122,11 @@ int shuffle_deck(int* deck, int* shuffled_deck, int size)
 		int random = (rand() % (size));
 		// If deck[random] is less than 0, then it has already been selected. Select another card by essentially decrementing i
 		// else select random element from deck and place it in shuffled_deck[i]. set deck[random] to -1
-		/* printf("deck[random]: %d\n", deck[random]); */
+		printf("deck[%d]: %d\n", i, deck[random]);
 		if (deck[random] != -1)
 		{
 			shuffled_deck[i] = deck[random];
-			/* printf("\tshuffled_deck[i]: %d\n", shuffled_deck[i]); */
+			printf("\tshuffled_deck[%d]: %d\n", i, shuffled_deck[i]);
 			deck[random] = -1;
 		}
 		else
@@ -126,19 +138,19 @@ int shuffle_deck(int* deck, int* shuffled_deck, int size)
 	return DECK_SHUFFLE_SUCCESS;
 }
 
-int deal_card(int* hand, int* shuffled_deck, int index_of_top_card)
+int deal_card(int* hand, int* shuffled_deck, int *index_of_top_card)
 {
 	// loop through the hand (player or dealer) until you find "the top", or the first index without a card in it
 	for (int i = 0; i < DECK_SIZE / 2; i++)
 	{
 		if (hand[i] == 0)
 		{
-			hand[i] = shuffled_deck[index_of_top_card];
-			index_of_top_card--; // remove a card from the top of the deck
+			hand[i] = shuffled_deck[*index_of_top_card];
+			(*index_of_top_card)--; // remove a card from the top of the deck
 			
 			// Index 51 is the 52nd card bottom-up, i.e. the first card to be dealt.
 			// Since only 2 players are in this version, the second card (index 50) will be the one dealt to the dealer and must be face down
-			if (index_of_top_card != 50)
+			if (*index_of_top_card != 50)
 			{
 				if (hand[i] >= 2 && hand[i] <= 10)
 				{
@@ -187,13 +199,29 @@ int deal_card(int* hand, int* shuffled_deck, int index_of_top_card)
 	return DEAL_CARD_FAIL;
 }
 
-int* game_round(int* shuffled_deck, int* player_hand, int* dealer_hand, int* player_score)
+int game_round(int* shuffled_deck, int* player_hand, int* dealer_hand)
 {
-	int deck_top_card = DECK_SIZE;
+	int index_of_top_card = DECK_SIZE;
+	int player_score = 0;
+	int dealer_score = 0;
 
-	deck_top_card = deal_card(player_hand, shuffled_deck, deck_top_card);
+	// First card dealt to player
+	player_score = player_score + deal_card(player_hand, shuffled_deck, &index_of_top_card);
+	// Second card dealt to dealer (should be face down)
+	dealer_score = dealer_score + deal_card(dealer_hand, shuffled_deck, &index_of_top_card);
 
-	int choice = prompt_choice("Stay or Hit", "Would you like to stay or hit?", "Stay", "Hit", NULL);
+	printf("Player score: %d\nDealer score: %d\n", player_score, dealer_score);
+
+	/* int choice = prompt_choice("Stay or Hit", "Would you like to stay or hit?", "Stay", "Hit", NULL); */	
+
+	if (player_score > 21)
+	{
+		return DEALER_WIN;
+	}
+	else if (dealer_score > 21)
+	{
+		return PLAYER_WIN;
+	}
 
 	return player_score;
 }
@@ -206,14 +234,13 @@ int main() {
 	int player_hand[DECK_SIZE / 2];
 	int dealer_hand[DECK_SIZE / 2];
 
-	int player_score = 0;
-
-	int initialise_status = initialise_decks(deck, shuffled_deck, DECK_SIZE);
+	int initialise_status = initialise_decks(deck, shuffled_deck, player_hand, dealer_hand, DECK_SIZE);
 	if (initialise_status != INITIALISE_DECKS_SUCCESS)
 	{
 		return INITILIASE_DECKS_FAIL;
 	}
 	
+	// FIX: Some elements of deck are read as 0 when shuffling, so the shuffled_deck also gets a 0
 	int shuffle_status = shuffle_deck(deck, shuffled_deck, DECK_SIZE);
 	if (shuffle_status != DECK_SHUFFLE_SUCCESS)
 	{
@@ -222,11 +249,11 @@ int main() {
 
 	for (int i = 0; i < DECK_SIZE; i++)
 	{
-		printf("%d ", shuffled_deck[i]);
+		printf("i:%d %d\n", i, shuffled_deck[i]);
 	}
 
-	int choice = prompt_choice("Test Menu", "This is a message", "First option", "Second option", "Third option");
-	printf("Option picked: %d\n", choice);
+	/* int choice = prompt_choice("Test Menu", "This is a message", "First option", "Second option", "Third option"); */
+	/* printf("Option picked: %d\n", choice); */
 
 	return PROCESS_EXIT_NORMAL;
 }
