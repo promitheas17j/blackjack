@@ -1,4 +1,3 @@
-#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -61,51 +60,17 @@ int prompt_choice(char menu_name[], char msg[], char option1[], char option2[], 
 int initialise_decks(int* deck, int* shuffled_deck, int* player_hand, int* dealer_hand, int size)
 {
 	printf("=================INITIALISING==================\n");
-	for (int i = 0; i < DECK_SIZE; i++)
+	for (int i = 0; i < size; i++)
 	{
-		// initialise shuffled deck to be all 0s
-		/* deck[i] = 0; */
-		shuffled_deck[i] = 0;
-		player_hand[i] = 0;
-		dealer_hand[i] = 0;
-
-		/* if (deck[i] == 0) */
-		/* { */
-		/* 	printf("deck[%d] is zero\n", i); */
-		/* } */
-
-		if (i < 4)
-			deck[i] = 1;
-		else if (i >= 4 && i < 8)
-			deck[i] = 2;
-		else if (i >= 8 && i < 12)
-			deck[i] = 3;
-		else if (i >= 12 && i < 16)
-			deck[i] = 4;
-		else if (i >= 16 && i < 20)
-			deck[i] = 5;
-		else if (i >= 20 && i < 24)
-			deck[i] = 6;
-		else if (i >= 24 && i < 28)
-			deck[i] = 7;
-		else if (i >= 28 && i < 32)
-			deck[i] = 8;
-		else if (i >= 32 && i < 36)
-			deck[i] = 9;
-		else if (i >= 36 && i < 40)
-			deck[i] = 10;
-		else if (i >= 40 && i < 44)
-			deck[i] = 11;
-		else if (i >= 44 && i < 48)
-			deck[i] = 12;
-		else if (i >= 48 && i < 52)
-			deck[i] = 13;
-		else
-			deck[i] = -1;
-
-		/* printf("deck[%d]: %d\n", i, deck[i]); */
+		deck[i] = (i % 13) + 1;
 	}
 
+	for (int i = 0; i < size / 2; i++)
+	{
+		player_hand[i] = 0;
+		dealer_hand[i] = 0;
+	}
+	
 	return INITIALISE_DECKS_SUCCESS;
 }
 
@@ -119,14 +84,17 @@ int shuffle_deck(int* deck, int* shuffled_deck, int size)
 
 	for (int i = 0; i < size; i++)
 	{
+		shuffled_deck[i] = 0;
+	}
+
+	for (int i = 0; i < size; i++)
+	{
 		int random = (rand() % (size));
 		// If deck[random] is less than 0, then it has already been selected. Select another card by essentially decrementing i
 		// else select random element from deck and place it in shuffled_deck[i]. set deck[random] to -1
-		printf("deck[%d]: %d\n", i, deck[random]);
 		if (deck[random] != -1)
 		{
 			shuffled_deck[i] = deck[random];
-			printf("\tshuffled_deck[%d]: %d\n", i, shuffled_deck[i]);
 			deck[random] = -1;
 		}
 		else
@@ -143,6 +111,7 @@ int deal_card(int* hand, int* shuffled_deck, int *index_of_top_card)
 	// loop through the hand (player or dealer) until you find "the top", or the first index without a card in it
 	for (int i = 0; i < DECK_SIZE / 2; i++)
 	{
+		printf("Index of top card: %d\n", *index_of_top_card);
 		if (hand[i] == 0)
 		{
 			hand[i] = shuffled_deck[*index_of_top_card];
@@ -154,7 +123,7 @@ int deal_card(int* hand, int* shuffled_deck, int *index_of_top_card)
 			{
 				if (hand[i] >= 2 && hand[i] <= 10)
 				{
-					printf("%d was dealt...\n", hand[i]);
+					printf("%d was dealt\n", hand[i]);
 					return hand[i];
 				}
 				else
@@ -205,10 +174,11 @@ int game_round(int* shuffled_deck, int* player_hand, int* dealer_hand)
 	int player_score = 0;
 	int dealer_score = 0;
 
+	// FIX: Figure out why a single card dealing decrements the index_of_top_card variable twice, and why the dealer deals himself a card
 	// First card dealt to player
 	player_score = player_score + deal_card(player_hand, shuffled_deck, &index_of_top_card);
 	// Second card dealt to dealer (should be face down)
-	dealer_score = dealer_score + deal_card(dealer_hand, shuffled_deck, &index_of_top_card);
+	/* dealer_score = dealer_score + deal_card(dealer_hand, shuffled_deck, &index_of_top_card); */
 
 	printf("Player score: %d\nDealer score: %d\n", player_score, dealer_score);
 
@@ -239,18 +209,15 @@ int main() {
 	{
 		return INITILIASE_DECKS_FAIL;
 	}
-	
-	// FIX: Some elements of deck are read as 0 when shuffling, so the shuffled_deck also gets a 0
+
 	int shuffle_status = shuffle_deck(deck, shuffled_deck, DECK_SIZE);
 	if (shuffle_status != DECK_SHUFFLE_SUCCESS)
 	{
 		return shuffle_status;
 	}
 
-	for (int i = 0; i < DECK_SIZE; i++)
-	{
-		printf("i:%d %d\n", i, shuffled_deck[i]);
-	}
+	int player_score = game_round(shuffled_deck, player_hand, dealer_hand);
+	player_score++; // this is just so the compiler doesn't complain that player_score is unused
 
 	/* int choice = prompt_choice("Test Menu", "This is a message", "First option", "Second option", "Third option"); */
 	/* printf("Option picked: %d\n", choice); */
