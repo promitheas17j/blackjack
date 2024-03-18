@@ -3,6 +3,8 @@
 #include <time.h>
 
 #define DECK_SIZE 52
+#define DEALER_ID 0
+#define PLAYER_ID 1
 
 // FUNCTION EXIT CODE DEFINITIONS
 #define PROCESS_EXIT_NORMAL 0
@@ -14,6 +16,8 @@
 #define DECK_FINISHED 600
 #define PLAYER_WIN 700
 #define DEALER_WIN 800
+#define PLAYER_CARD_DEALT_UNKNOWN 900
+#define DEALER_CARD_DEALT_UNKNOWN 1000
 
 /* This is a function that allows us to easily create text based menus. */
 /* The minimum number of options supplied is 2, and the maximum is 3. */
@@ -21,7 +25,7 @@
 int prompt_choice(char menu_name[], char msg[], char option1[], char option2[], char option3[])
 {
 	int num_options = 0;
-	printf("\n\n=================%s==================\n", menu_name);
+	printf("\n=================%s==================\n", menu_name);
 	printf("%s\n", msg);
 	printf("1. %s\n", option1);
 	printf("2. %s\n", option2);
@@ -106,79 +110,185 @@ int shuffle_deck(int* deck, int* shuffled_deck, int size)
 	return DECK_SHUFFLE_SUCCESS;
 }
 
-int deal_card(int* hand, int* shuffled_deck, int *index_of_top_card)
+int deal_card(int player_id, int* hand, int* shuffled_deck, int *index_of_top_card)
 {
+	printf("\n");
 	// loop through the hand (player or dealer) until you find "the top", or the first index without a card in it
 	for (int i = 0; i < DECK_SIZE / 2; i++)
 	{
-		printf("Index of top card: %d\n", *index_of_top_card);
+		/* printf("O: Index of top card: %d\n", *index_of_top_card); */
 		if (hand[i] == 0)
 		{
 			hand[i] = shuffled_deck[*index_of_top_card];
 			(*index_of_top_card)--; // remove a card from the top of the deck
+			/* printf("I: Index of top card: %d\n", *index_of_top_card); */
 			
-			// Index 51 is the 52nd card bottom-up, i.e. the first card to be dealt.
-			// Since only 2 players are in this version, the second card (index 50) will be the one dealt to the dealer and must be face down
-			if (*index_of_top_card != 50)
-			{
-				if (hand[i] >= 2 && hand[i] <= 10)
-				{
-					printf("%d was dealt\n", hand[i]);
-					return hand[i];
-				}
-				else
-				{
-					if (hand[i] == 11)
-					{
-						printf("Jack was dealt\n");
-						return 10;
-					}
-					else if (hand[i] == 12)
-					{
-						printf("Queen was dealth\n");
-						return 10;
-					}
-					else if (hand[i] == 13)
-					{
-						printf("King was dealt\n");
-						return 10;
-					}
-					else if (hand[i] == 1)
-					{
-						int choice = prompt_choice("Ace", "Ace was dealt. Would you like it to count as 1 point or 11 points?", "One point", "Eleven points", NULL);
-						if (choice == 1)
-						{
-							return 1;
-						}
-						else
-						{
-							return 11;
-						}
-					}
-				}
-			}
-			else // index 50 i.e second card to be dealt, i.e. will not show to the player
-			{
-				printf("Dealer deals himself a card face down\n");
-				return hand[i];
-			}
+			return hand[i];
 		}
 	}
 
 	return DEAL_CARD_FAIL;
 }
 
+void show_hand(char* player, int* hand)
+{
+	printf("%s hand: ", player);
+	for (int i = 0; i < DECK_SIZE / 2; i++)
+	{
+		if (hand[i] == 0)
+		{
+			break;
+		}
+
+		if (hand[i] == 1)
+		{
+			printf("A ");
+		}
+		else if (hand[i] >= 2 && hand[i] <= 10)
+		{
+			printf("%d ", hand[i]);
+		}
+		else if (hand[i] == 11)
+		{
+			printf("J ");
+		}
+		else if (hand[i] == 12)
+		{
+			printf("Q ");
+		}
+		else if (hand[i] == 13)
+		{
+			printf("K ");
+		}
+	}
+
+	printf("\n");
+}
+
+int output_player_dealt_card(int* hand, int card_dealt)
+{
+	if (card_dealt >= 2 && card_dealt <= 10)
+	{
+		printf("%d was dealt\n", card_dealt);
+		return card_dealt;
+	}
+	else if (card_dealt == 11)
+	{
+		printf("Jack was dealt\n");
+		return 10;
+	}
+	else if (card_dealt == 12)
+	{
+		printf("Queen was dealt\n");
+		return 10;
+	}
+	else if (card_dealt == 13)
+	{
+		printf("King was dealt\n");
+		return 10;
+	}
+	else if (card_dealt == 1)
+	{
+		int choice = prompt_choice("Ace", "Ace was dealt. Would you like it to count as 1 point or 11 points?", "One point", "Eleven points", NULL);
+		if (choice == 1)
+		{
+			return 1;
+		}
+		else
+		{
+			return 11;
+		}
+	}
+	
+	return PLAYER_CARD_DEALT_UNKNOWN;
+}
+
+int output_dealer_dealt_card(int* hand, int dealer_score, int card_dealt)
+{
+	if (hand[0] != 0 && hand[1] == 0) // dealer only has one card i.e. the first card which must be hidden
+	{
+		printf("Dealer gets dealt a card face down.\n");
+
+		if (card_dealt == 1)
+		{
+			if ((dealer_score + 11) > 21)
+			{
+				return 1;
+			}
+			else
+			{
+				return 11;
+			}
+		}
+		return card_dealt; // if its not a 1, simply return its value as is
+	}
+	else // this is not the dealers first card, so it must be shown to the player
+	{
+		if (card_dealt >= 2 && card_dealt <= 10)
+		{
+			printf("%d was dealt\n", card_dealt);
+			return card_dealt;
+		}
+		else if (card_dealt == 11)
+		{
+			printf("Jack was dealt\n");
+			return 10;
+		}
+		else if (card_dealt == 12)
+		{
+			printf("Queen was dealt\n");
+			return 10;
+		}
+		else if (card_dealt == 13)
+		{
+			printf("King was dealt\n");
+			return 10;
+		}
+		else if (card_dealt == 1)
+		{
+			printf("Ace was dealt\n");
+
+			if ((dealer_score + 11) > 21)
+			{
+				return 1;
+			}
+			else
+			{
+				return 11;
+			}
+		}
+		return DEALER_CARD_DEALT_UNKNOWN;
+	}
+}
+
 int game_round(int* shuffled_deck, int* player_hand, int* dealer_hand)
 {
-	int index_of_top_card = DECK_SIZE;
+	int index_of_top_card = DECK_SIZE - 1;
 	int player_score = 0;
 	int dealer_score = 0;
+	int card_dealt = 0;
 
-	// FIX: Figure out why a single card dealing decrements the index_of_top_card variable twice, and why the dealer deals himself a card
-	// First card dealt to player
-	player_score = player_score + deal_card(player_hand, shuffled_deck, &index_of_top_card);
-	// Second card dealt to dealer (should be face down)
-	/* dealer_score = dealer_score + deal_card(dealer_hand, shuffled_deck, &index_of_top_card); */
+	// Opening deals of the round (i.e. two to palyer two to dealer, first face down)
+	card_dealt = deal_card(PLAYER_ID, player_hand, shuffled_deck, &index_of_top_card);
+	player_score = player_score + output_player_dealt_card(player_hand, card_dealt);
+	card_dealt = deal_card(PLAYER_ID, player_hand, shuffled_deck, &index_of_top_card);
+	player_score = player_score + output_player_dealt_card(player_hand, card_dealt);
+
+	card_dealt = deal_card(DEALER_ID, dealer_hand, shuffled_deck, &index_of_top_card);
+	dealer_score = dealer_score + output_dealer_dealt_card(dealer_hand, dealer_score, card_dealt);
+	card_dealt = deal_card(DEALER_ID, dealer_hand, shuffled_deck, &index_of_top_card);
+	dealer_score = dealer_score + output_dealer_dealt_card(dealer_hand, dealer_score, card_dealt);
+	
+	card_dealt = deal_card(PLAYER_ID, player_hand, shuffled_deck, &index_of_top_card);
+	player_score = player_score + output_player_dealt_card(player_hand, card_dealt);
+	card_dealt = deal_card(DEALER_ID, dealer_hand, shuffled_deck, &index_of_top_card);
+	dealer_score = dealer_score + output_dealer_dealt_card(dealer_hand, dealer_score, card_dealt);
+
+
+	show_hand("Player", player_hand);
+	show_hand("Dealer", dealer_hand);
+
+	// while (condition)
 
 	printf("Player score: %d\nDealer score: %d\n", player_score, dealer_score);
 
