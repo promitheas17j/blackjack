@@ -2,22 +2,26 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define DECK_SIZE 52
-#define DEALER_ID 0
-#define PLAYER_ID 1
+const int DECK_SIZE = 52;
+const int DEALER_ID = 0;
+const int PLAYER_ID = 1;
+const int TRUE = 0;
+const int FALSE = 1;
 
-// FUNCTION EXIT CODE DEFINITIONS
-#define PROCESS_EXIT_NORMAL 0
-#define DECK_SHUFFLE_SUCCESS 100
-#define SUPPLIED_DECK_NULL 200
-#define INITIALISE_DECKS_SUCCESS 300
-#define INITILIASE_DECKS_FAIL 400
-#define DEAL_CARD_FAIL 500
-#define DECK_FINISHED 600
-#define PLAYER_WIN 700
-#define DEALER_WIN 800
-#define PLAYER_CARD_DEALT_UNKNOWN 900
-#define DEALER_CARD_DEALT_UNKNOWN 1000
+// FUNCTION EXIT CODE CONSTANTS
+const int PROCESS_EXIT_NORMAL = 0;
+const int DECK_SHUFFLE_SUCCESS = 100;
+const int SUPPLIED_DECK_NULL = 200;
+const int INITIALISE_DECKS_SUCCESS = 300;
+const int INITILIASE_DECKS_FAIL = 400;
+const int DEAL_CARD_FAIL = 500;
+const int DECK_FINISHED = 600;
+const int PLAYER_WIN = 700;
+const int DEALER_WIN = 800;
+const int ROUND_PUSH = 900;
+const int PLAYER_CARD_DEALT_UNKNOWN = 1000;
+const int DEALER_CARD_DEALT_UNKNOWN = 1100;
+const int ROUND_WINNER_UNDETERMINED = 1200;
 
 /* This is a function that allows us to easily create text based menus. */
 /* The minimum number of options supplied is 2, and the maximum is 3. */
@@ -130,11 +134,32 @@ int deal_card(int player_id, int* hand, int* shuffled_deck, int *index_of_top_ca
 	return DEAL_CARD_FAIL;
 }
 
-void show_hand(char* player, int* hand)
+void show_hand(int player_id, int* hand, int round_is_done)
 {
-	printf("%s hand: ", player);
+	if (player_id == PLAYER_ID)
+	{
+		printf("Player's hand: ");
+	}
+	else if (player_id == DEALER_ID)
+	{
+		printf("Dealer's hand: ");
+	}
+
 	for (int i = 0; i < DECK_SIZE / 2; i++)
 	{
+		/*
+			If all of the following conditions hold true, then we must keep the first dealer card hidden:
+			- It is the first card of the deck
+			- The card is not an empty card
+			- We want to show the dealer's hand
+			- The round is not over (if it is over we want to show the entire dealer's hand)
+		*/
+		if (i == 0 && hand[i] != 0 && player_id == DEALER_ID && round_is_done == FALSE)
+		{
+			printf("? ");
+			continue;
+		}
+
 		if (hand[i] == 0)
 		{
 			break;
@@ -144,6 +169,7 @@ void show_hand(char* player, int* hand)
 		{
 			printf("A ");
 		}
+
 		else if (hand[i] >= 2 && hand[i] <= 10)
 		{
 			printf("%d ", hand[i]);
@@ -267,6 +293,8 @@ int game_round(int* shuffled_deck, int* player_hand, int* dealer_hand)
 	int player_score = 0;
 	int dealer_score = 0;
 	int card_dealt = 0;
+	int player_bust = FALSE;
+	int dealer_bust = FALSE;
 
 	// Opening deals of the round (i.e. two to palyer two to dealer, first face down)
 	card_dealt = deal_card(PLAYER_ID, player_hand, shuffled_deck, &index_of_top_card);
@@ -279,31 +307,94 @@ int game_round(int* shuffled_deck, int* player_hand, int* dealer_hand)
 	card_dealt = deal_card(DEALER_ID, dealer_hand, shuffled_deck, &index_of_top_card);
 	dealer_score = dealer_score + output_dealer_dealt_card(dealer_hand, dealer_score, card_dealt);
 	
-	card_dealt = deal_card(PLAYER_ID, player_hand, shuffled_deck, &index_of_top_card);
-	player_score = player_score + output_player_dealt_card(player_hand, card_dealt);
-	card_dealt = deal_card(DEALER_ID, dealer_hand, shuffled_deck, &index_of_top_card);
-	dealer_score = dealer_score + output_dealer_dealt_card(dealer_hand, dealer_score, card_dealt);
+		
+	int keep_betting = TRUE;
+	while (keep_betting == TRUE)
+	{
+		printf("\n");
+		show_hand(PLAYER_ID, player_hand, FALSE);
+		show_hand(DEALER_ID, dealer_hand, FALSE);
 
+		int choice = prompt_choice("Hit or Stay", "Would you like to HIT or STAY?", "Hit", "Stay", NULL);
+		if (choice == 2)
+		{
+			keep_betting = FALSE;
+		}
+		else
+		{
+			card_dealt = deal_card(PLAYER_ID, player_hand, shuffled_deck, &index_of_top_card);
+			player_score = player_score + output_player_dealt_card(player_hand, card_dealt);
 
-	show_hand("Player", player_hand);
-	show_hand("Dealer", dealer_hand);
+			if (player_score > 21)
+			{
+				keep_betting = FALSE;
+				player_bust = TRUE;
+			}
+		}
+	}
 
-	// while (condition)
+	printf("\n-+++- Dealer Draws -+++-\n");
+	while (keep_betting == TRUE)
+	{
+		if (dealer_score <= 16)
+		{
+			card_dealt = deal_card(DEALER_ID, dealer_hand, shuffled_deck, &index_of_top_card);
+			dealer_score = dealer_score + output_dealer_dealt_card(dealer_hand, dealer_score, card_dealt);
+
+			if (dealer_score > 21)
+			{
+				keep_betting = FALSE;
+				dealer_bust = TRUE;
+			}
+		}
+		else
+		{
+			keep_betting = FALSE;
+		}
+	}
+
+	show_hand(PLAYER_ID, player_hand, TRUE);
+	show_hand(DEALER_ID, dealer_hand, TRUE);
+
 
 	printf("Player score: %d\nDealer score: %d\n", player_score, dealer_score);
 
-	/* int choice = prompt_choice("Stay or Hit", "Would you like to stay or hit?", "Stay", "Hit", NULL); */	
-
-	if (player_score > 21)
+	/*
+		Round end cases:
+			player and dealer have same score --> draw
+			player has higher score than dealer but not bust --> player wins
+			player has higher score than dealer but bust --> dealer wins
+			dealer has higher score than player but not bust --> dealer wins
+			dealer has higher score than player but bust --> player wins
+	*/
+	if (player_score == dealer_score)
 	{
-		return DEALER_WIN;
+		return ROUND_PUSH;
 	}
-	else if (dealer_score > 21)
+	else if (player_score > dealer_score)
 	{
-		return PLAYER_WIN;
+		if (player_bust == FALSE)
+		{
+			return PLAYER_WIN;
+		}
+		else
+		{
+			return DEALER_WIN;
+		}
+	}
+	else if (player_score < dealer_score)
+	{
+		if (dealer_bust == FALSE)
+		{
+			return DEALER_WIN;
+		}
+		else
+		{
+			return PLAYER_WIN;
+		}
 	}
 
-	return player_score;
+	return ROUND_WINNER_UNDETERMINED;
 }
 
 int main() {
@@ -326,11 +417,25 @@ int main() {
 		return shuffle_status;
 	}
 
-	int player_score = game_round(shuffled_deck, player_hand, dealer_hand);
-	player_score++; // this is just so the compiler doesn't complain that player_score is unused
+	int round_result = game_round(shuffled_deck, player_hand, dealer_hand);
 
-	/* int choice = prompt_choice("Test Menu", "This is a message", "First option", "Second option", "Third option"); */
-	/* printf("Option picked: %d\n", choice); */
+	if (round_result == ROUND_WINNER_UNDETERMINED)
+	{
+		printf("\n\nError: Round winner could be determined. This should not happen normally.\n");
+		return ROUND_WINNER_UNDETERMINED;
+	}
+	else if (round_result == PLAYER_WIN)
+	{
+		printf("\n\nYou won!!! Congratulations.\n");
+	}
+	else if (round_result == DEALER_WIN)
+	{
+		printf("\n\nDealer won. Better luck next time.\n");
+	}
+	else // round_result == ROUND_PUSH
+	{
+		printf("\n\nRound is a draw. Nobody wins.\n");
+	}
 
 	return PROCESS_EXIT_NORMAL;
 }
