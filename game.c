@@ -334,6 +334,7 @@ int game_round(int* shuffled_deck, int* player_hand, int* dealer_hand)
 	}
 
 	printf("\n-+++- Dealer Draws -+++-\n");
+	keep_betting = TRUE;
 	while (keep_betting == TRUE)
 	{
 		if (dealer_score <= 16)
